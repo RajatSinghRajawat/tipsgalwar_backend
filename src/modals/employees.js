@@ -92,10 +92,13 @@ const employeeSchema = new mongoose.Schema(
     bankHolderName: {
       type: String,
       required: true
+    },
+    images:{
+      type: [String],
+      required: true
     }
   },
 
-  // Professional Option
   {
     timestamps: true
   }
