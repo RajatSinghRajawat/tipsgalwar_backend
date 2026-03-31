@@ -7,11 +7,19 @@ const addEmployee = async (req, res) => {
   try {
     const { name, password, qualification, institute, department, mobileNumber, emergencyContact, email, dob, address, startTime, endTime, salary, accountNumber, ifscCode, bankName, bankHolderName, images } = req.body;
 
-    const imageFiles = req.files.map(file => file.filename);
+    const uploadedImages = Array.isArray(req.files)
+      ? req.files.map((file) => file.filename)
+      : [];
+
+    const bodyImages = Array.isArray(images)
+      ? images.filter(Boolean)
+      : (typeof images === "string" && images.trim() !== "" ? [images.trim()] : []);
+
+    const finalImages = uploadedImages.length > 0 ? uploadedImages : bodyImages;
 
 
     if (
-      !name || !password || !email || !mobileNumber || !department || !salary || !images || images.length === 0) {
+      !name || !password || !email || !mobileNumber || !department || !salary || finalImages.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Please fill all required fields"
@@ -30,7 +38,7 @@ const addEmployee = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const employee = await Employee.create({
-      name, password: hashedPassword, qualification, institute, department, mobileNumber, emergencyContact, email, dob, address, startTime, endTime, salary, accountNumber, ifscCode, bankName, bankHolderName, images
+      name, password: hashedPassword, qualification, institute, department, mobileNumber, emergencyContact, email, dob, address, startTime, endTime, salary, accountNumber, ifscCode, bankName, bankHolderName, images: finalImages
     });
 
     res.status(201).json({
@@ -167,7 +175,7 @@ const updateEmployee = async (req, res) => {
     const updatedEmployee = await Employee.findByIdAndUpdate(
       id,
       updateData,
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.status(200).json({
@@ -198,14 +206,13 @@ const updateEmployee = async (req, res) => {
       });
     }
 
-    const employee = await Employee.findById(id);
+    const employee = await Employee.findByIdAndDelete(id);
     if (!employee) {
       return res.status(404).json({
         success: false,
         message: "Employee not found"
       });
     }
-    await employee.remove();
     res.status(200).json({
       success: true,
       message: "Employee Deleted Successfully"
