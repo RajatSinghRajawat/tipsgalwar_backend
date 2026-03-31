@@ -1,16 +1,22 @@
 const mongoose = require('mongoose')
+const Courses = require("../modals/courses");
+const Batches = require("../modals/batch");
+
 
 const fields = new mongoose.Schema({
     course_id: {
-        type: ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Courses",
         required: true
     },
     batch_id: {
-        type: ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Batches",
         required: true
     },
     enrollment_id: {
-        type: ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
+        // ref: "Enrollments",
         required: true,
         unique: true
     },
@@ -70,9 +76,16 @@ const fields = new mongoose.Schema({
     dob: {
         type: Date,
         required: true
+    },
+    image: {
+        type: String,
+        required: true,
+        default: ""
     }
 })
 
+
 const Students = mongoose.model('Students', fields);
+
 
 module.exports = { Students }

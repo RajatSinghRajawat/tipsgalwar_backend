@@ -4,12 +4,19 @@ const { Students } = require("../modals/students");
 
 const add_Student = async (req, res) => {
     try {
-        const { course_id, batch_id, enrollment_id, name, father_name, mother_name, address, aadhar, pan_card, emi, contact, email, password, dob } = await req.body;
+        const { course_id, batch_id, enrollment_id, name, father_name, mother_name, address, aadhar, pan_card, emi, contact, email, password, dob } = req.body;
+        
+        if (!course_id || !batch_id || !enrollment_id || !name || !father_name || !mother_name || !address || !aadhar || !pan_card || !emi || !contact || !email || !password || !dob) {
+            return res.status(400).json({ message: "All fields are required." });
+        }
+        
         const existing = await Students.findOne({ email });
-
+        
         if (existing) {
             return res.status(400).json({ message: "Email already exists" });
         }
+
+        const image = req.file?.filename;
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const data = await Students.create({
@@ -26,7 +33,8 @@ const add_Student = async (req, res) => {
             contact,
             email,
             password: hashedPassword,
-            dob
+            dob,
+            image
         })
 
         return res.status(201).json({ message: "Data added Successfully.", data })
@@ -39,7 +47,7 @@ const add_Student = async (req, res) => {
 
 const getAll_Student = async (req, res) => {
     try {
-        const data = await Students.find();
+        const data = await Students.find().populate('course_id').populate('batch_id').populate('enrollment_id');
 
         return res.status(200).json({ message: "Data fetched Successfully.", data })
     } catch (error) {
@@ -70,7 +78,14 @@ const update_Student = async (req, res) => {
     try {
         const id = req.params.id;
 
-        const updated_Data = await Students.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
+        if (req.file) {
+            req.body.image = req.file?.filename;
+        }
+
+        const updated_Data = await Students.findByIdAndUpdate(id, req.body, 
+            // { new: true, runValidators: true }
+        )
+        
         if (!updated_Data) {
             return res.status(404).json({ message: "Data not found." });
         }
@@ -99,4 +114,19 @@ const delete_Student = async (req, res) => {
 }
 
 
-module.exports = { add_Student, getAll_Student, getOne_Student, update_Student, delete_Student }
+const search_Student = async (req, res) => {
+    try {
+        const search_Value = await req.query.name;
+
+        const data = await Students.find({
+            name: { $regex: search_Value, $options: 'i' }
+        })
+
+        return res.status(200).json({ message: "Student found Successfully.", data })
+    } catch (error) {
+        return res.status(500).json({ message: error.message })
+    }
+}
+
+
+module.exports = { add_Student, getAll_Student, getOne_Student, update_Student, delete_Student, search_Student }
