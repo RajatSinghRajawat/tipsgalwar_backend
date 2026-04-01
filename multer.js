@@ -8,17 +8,10 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const storage = multer.diskStorage({
-<<<<<<< HEAD
     destination: function (req, file, cb) {
         cb(null, "public/Uploads");
     },
     filename: function (req, file, cb) {
-=======
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
->>>>>>> origin/ravinder
         cb(null, Date.now() + " " + file.originalname);
     },
 });
