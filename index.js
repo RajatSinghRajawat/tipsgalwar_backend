@@ -1,8 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const { connectDb } = require('./src/config/config');
-const router = require('./src/routes/Course');
+
+const path = require('path');
+const router = require('./src/routes/batch');
 
 const port = process.env.PORT || 3005;
 

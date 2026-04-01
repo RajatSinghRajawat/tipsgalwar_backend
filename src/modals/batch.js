@@ -1,32 +1,37 @@
 const mongoose = require("mongoose");
 
-const batch = mongoose.Schema({
-    BatchName: {
+const fields = mongoose.Schema({
+    batch_Name: {
         type: String,
         required: true
     },
-    StartDate: {
+    start_Date: {
         type: Date,
         required: true
     },
-    EndDate: {
+    end_Date: {
         type: Date,
         required: true
     },
-    StartTime: {
+    start_Time: {
         type: Date,
         required: true
     },
-    EndTime: {
+    end_Time: {
         type: Date,
         required: true
     },
     status: {
         type: String,
         required: true
+    },
+    images: {
+        type: [String],
+        required: true,
+        default: []
     }
 })
 
-const Batches = mongoose.Model("batches", batch);
+const Batches = mongoose.model("Batch", fields);
 
 module.exports = { Batches }

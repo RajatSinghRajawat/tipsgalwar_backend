@@ -1,48 +1,47 @@
-
 const { Batches } = require("../modals/batch");
 
 
 const add = async (req, res) => {
     try {
-        const { BatchName, StartDate, EndDate, StartTime, EndTime, status } = req.body;
+        const { batch_Name, start_Date, end_Date, start_Time, end_Time, status } = req.body;
 
-        if (!BatchName || !StartDate || !EndDate || !StartTime || !EndTime || !status) {
-            return res.status(400).json({
-                message: "All fields are required"
-            });
+        if (!batch_Name || !start_Date || !end_Date || !start_Time || !end_Time || !status) {
+            return res.status(400).json({ message: "All fields are required" });
         }
 
-        if (new Date(EndDate) < new Date(StartDate)) {
-            return res.status(400).json({
-                message: "EndDate cannot be before StartDate"
-            });
+        if (new Date(end_Date) < new Date(start_Date)) {
+            return res.status(400).json({ message: "End Date cannot be before Start Date" });
         }
+
+        const existingBatch = await Batches.findOne({ batch_Name });
+        if (existingBatch) {
+            return res.status(400).json({ message: "Batch with this name already exists" });
+        }
+
+        const image = req.files.map(file => file.filename);
 
         const added_Data = await Batches.create({
-            BatchName,
-            StartDate,
-            EndDate,
-            StartTime,
-            EndTime,
-            status
+            batch_Name,
+            start_Date,
+            end_Date,
+            start_Time,
+            end_Time,
+            status,
+            images: image
         });
 
-        return res.status(201).json({
-            message: "Batch data successfully added",
-            added_Data
-        });
+        return res.status(201).json({ message: "Batch data added Successfully.", added_Data });
     } catch (error) {
-        return res.status(500).json({
-            message: error.message
-        });
+        return res.status(500).json({ message: error.message });
     }
 };
 
 
 const getAll = async (req, res) => {
     try {
-        const batches = await Batches.find();
-        return res.status(200).json({ batches });
+        const data = await Batches.find();
+
+        return res.status(200).json({ message: "Batches retrieved Successfully.", data });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
@@ -52,11 +51,13 @@ const getAll = async (req, res) => {
 const getOne = async (req, res) => {
     try {
         const { id } = req.params;
-        const batch = await Batches.findById(id);
-        if (!batch) {
+        const data = await Batches.findById(id);
+
+        if (!data) {
             return res.status(404).json({ message: "Batch not found" });
         }
-        return res.status(200).json({ batch });
+
+        return res.status(200).json({ message: "Batch retrieved Successfully.", data });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
@@ -66,42 +67,47 @@ const getOne = async (req, res) => {
 const update = async (req, res) => {
     try {
         const { id } = req.params;
-        const { BatchName, StartDate, EndDate, StartTime, EndTime, status } = req.body;
+        const { batch_Name, start_Date, end_Date, start_Time, end_Time, status } = req.body;
 
-        if (!BatchName || !StartDate || !EndDate || !StartTime || !EndTime || !status) {
+        if (!batch_Name || !start_Date || !end_Date || !start_Time || !end_Time || !status) {
             return res.status(400).json({ message: "All fields are required" });
         }
-        if (new Date(EndDate) < new Date(StartDate)) {
-            return res.status(400).json({ message: "EndDate cannot be before StartDate" });
+
+        if (new Date(end_Date) < new Date(start_Date)) {
+            return res.status(400).json({ message: "End Date cannot be before Start Date" });
         }
 
-        const updated = await Batches.findByIdAndUpdate(
-            id,
-            { BatchName, StartDate, EndDate, StartTime, EndTime, status },
-            { new: true }
-        );
+        if (req.files && req.files.length > 0) {
+            var image = req.files.map(file => file.filename);
+        }
 
-        if (!updated) {
+        const updated_data = await Batches.findByIdAndUpdate(id, { batch_Name, start_Date, end_Date, start_Time, end_Time, status, images: image }, { new: true });
+
+        if (!updated_data) {
             return res.status(404).json({ message: "Batch not found" });
         }
-        return res.status(200).json({ message: "Batch updated", updated });
+
+        return res.status(200).json({ message: "Batch updated Successfully.", updated_data });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
 };
 
 
-const remove = async (req, res) => {
+const del = async (req, res) => {
     try {
         const { id } = req.params;
-        const deleted = await Batches.findByIdAndDelete(id);
-        if (!deleted) {
+        const deleted_data = await Batches.findByIdAndDelete(id);
+
+        if (!deleted_data) {
             return res.status(404).json({ message: "Batch not found" });
         }
-        return res.status(200).json({ message: "Batch deleted" });
+
+        return res.status(200).json({ message: "Batch deleted Successfully.", deleted_data });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
 };
 
-module.exports = { add, getAll, getOne, update, remove };
+
+module.exports = { add, getAll, getOne, update, del };
