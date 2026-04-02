@@ -31,7 +31,7 @@ const uploadFile = (req, res) => {
 
 
 // ADD EMPLOYEE
-router.post("/add", addEmployee);
+router.post("/add", upload.array("images"), addEmployee);
 
 
 // GET ALL EMPLOYEES
@@ -43,7 +43,7 @@ router.get("/:id", getEmployeeById);
 
 
 // UPDATE EMPLOYEE
-router.put("/update/:id", updateEmployee);
+router.put("/update/:id", upload.array("images"), updateEmployee);
 
 
 // DELETE EMPLOYEE

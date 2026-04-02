@@ -18,7 +18,7 @@ app.use(express.static('public/Uploads'));
 connectDb();
 
 app.use('/api/employees', require('./src/routes/employeesroutes'));
-app.use("/public", express.static(path.join(__dirname, "src", "public", "Uploads")));
+app.use("/public", express.static(path.join(__dirname, "public", "Uploads")));
 
 
 app.listen(port, () => {

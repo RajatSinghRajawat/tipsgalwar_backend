@@ -19,7 +19,23 @@ const addEmployee = async (req, res) => {
 
 
     if (
-      !name || !password || !email || !mobileNumber || !department || !salary || finalImages.length === 0) {
+      !name ||
+      !password ||
+      !qualification ||
+      !institute ||
+      !department ||
+      !mobileNumber ||
+      !emergencyContact ||
+      !email ||
+      !dob ||
+      !address ||
+      !salary ||
+      !accountNumber ||
+      !ifscCode ||
+      !bankName ||
+      !bankHolderName ||
+      finalImages.length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Please fill all required fields"
@@ -48,8 +64,14 @@ const addEmployee = async (req, res) => {
     });
 
   } catch (error) {
-
     console.log(error);
+
+    if (error?.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Employee already exists"
+      });
+    }
 
     res.status(500).json({
       success: false,
@@ -123,12 +145,14 @@ const updateEmployee = async (req, res) => {
       });
     }
 
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
-    }
+    const body = req.body || {};
+    const uploadedImages = Array.isArray(req.files) ? req.files.map((file) => file.filename) : [];
+
+    const normalizedBodyImages = Array.isArray(body.images)
+      ? body.images.filter(Boolean)
+      : (typeof body.images === "string" && body.images.trim() !== "" ? [body.images.trim()] : []);
+
+    const finalImages = uploadedImages.length > 0 ? uploadedImages : normalizedBodyImages;
 
     const employee = await Employee.findById(id);
 
@@ -162,21 +186,40 @@ const updateEmployee = async (req, res) => {
 
     const updateData = {};
 
-    for (const key of Object.keys(req.body)) {
+    for (const key of Object.keys(body)) {
       if (allowedFields.includes(key)) {
         if (key === "password") {
-          updateData[key] = await bcrypt.hash(req.body[key], 10);
+          updateData[key] = await bcrypt.hash(body[key], 10);
         } else {
-          updateData[key] = req.body[key];
+          updateData[key] = body[key];
         }
       }
+    }
+
+    // If images are uploaded using multer, use them even if body.images is not sent.
+    if (finalImages.length > 0) {
+      updateData.images = finalImages;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Nothing to update",
+      });
     }
 
     const updatedEmployee = await Employee.findByIdAndUpdate(
       id,
       updateData,
-      { returnDocument: "after" }
+      { new: true, runValidators: true }
     );
+
+    if (!updatedEmployee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -186,6 +229,12 @@ const updateEmployee = async (req, res) => {
 
   } catch (error) {
     console.log(error);
+    if (error?.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already in use",
+      });
+    }
     res.status(500).json({
       success: false,
       message: "Server Error",
