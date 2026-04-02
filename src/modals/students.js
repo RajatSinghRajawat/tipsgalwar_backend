@@ -1,20 +1,20 @@
 const mongoose = require('mongoose')
-const Courses = require("../modals/courses");
+const Courses = require("../modals/course");
 const Batches = require("../modals/batch");
 
 
 const fields = new mongoose.Schema({
-    course_id: {
+    course_Id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Courses",
         required: true
     },
-    batch_id: {
+    batch_Id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Batches",
         required: true
     },
-    enrollment_id: {
+    enrollment_Id: {
         type: mongoose.Schema.Types.ObjectId,
         // ref: "Enrollments",
         required: true,
@@ -25,12 +25,12 @@ const fields = new mongoose.Schema({
         required: true,
         trim: true
     },
-    father_name: {
+    father_Name: {
         type: String,
         required: true,
         trim: true
     },
-    mother_name: {
+    mother_Name: {
         type: String,
         required: true,
         trim: true
@@ -46,7 +46,7 @@ const fields = new mongoose.Schema({
         required: true,
         match: /^[0-9]{12}$/
     },
-    pan_card: {
+    pan_Card: {
         type: String,
         required: true,
         match: /^[0-9]{12}$/

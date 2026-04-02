@@ -1,12 +1,15 @@
-const express = require("express");
-const router = express.Router();
-const { add, getAll, getOne, update, del } = require("../controllers/Course");
-const upload = require("../../multer");
+const express = require('express');
+const course_Router = express.Router();
 
-router.post("/add", upload.array("banner"), add);
-router.get("/get", getAll);
-router.get("/getOne/:id", getOne);
-router.put("/update/:id", upload.array("banner"), update);
-router.delete("/delete/:id", del);
+const upload = require('../../multer');
+const { add, getAll, getOne, update, del } = require('../controllers/course');
 
-module.exports = router;
+
+course_Router.post('/add', upload.array('banner'), add);
+course_Router.get('/get', getAll);
+course_Router.get('/getOne/:id', getOne);
+course_Router.put('/update/:id', upload.array('banner'), update);
+course_Router.delete('/delete/:id', del);
+
+
+module.exports = course_Router;
