@@ -13,24 +13,13 @@ const {
 
 const uploadFile = (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No files uploaded",
-      });
-    }
+    if (!req.files || req.files.length === 0) { return res.status(400).json({ success: false, message: "No files uploaded", }); }
 
-    const files = req.files.map((file) => ({
-      filename: file.filename,
-      path: `/public/Uploads/${file.filename}`,
-    }));
+    const files = req.files.map((file) => ({ filename: file.filename, path: `/public/${file.filename}`, }));
 
-    return res.status(200).json({
-      success: true,
-      message: "Files uploaded successfully",
-      files,
-    });
+    return res.status(200).json({ success: true, message: "Files uploaded successfully", files, });
   } catch (error) {
+
     console.log(error);
     return res.status(500).json({
       success: false,
