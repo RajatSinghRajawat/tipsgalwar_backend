@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const { Employees } = require("../modals/employees");
+const XLSX = require("xlsx");
 
 
 const add_Employees = async (req, res) => {
@@ -153,4 +154,85 @@ const delete_Employee = async (req, res) => {
 };
 
 
-module.exports = { add_Employees, getAll_Employees, getOne_Employee, update_Employee, delete_Employee };
+
+
+
+
+
+
+
+
+
+
+const uploadExcelEmployees = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Please upload Excel file" });
+        }
+
+        // Read Excel file
+        const workbook = XLSX.readFile(req.file.path);
+        const sheetName = workbook.SheetNames[0];
+        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        let insertedData = [];
+        let skippedData = [];
+
+        for (let item of sheetData) {
+            try {
+                // Check duplicate email
+                const exist = await Employees.findOne({ email: item.email });
+                if (exist) {
+                    skippedData.push({ email: item.email, reason: "Already exists" });
+                    continue;
+                }
+
+                // Hash password
+                const hashedPassword = await bcrypt.hash(item.password, 10);
+
+                const newEmployee = {
+                    name: item.name,
+                    password: hashedPassword,
+                    qualification: item.qualification,
+                    institute: item.institute,
+                    department: item.department,
+                    mobile_Number: item.mobile_Number,
+                    emergency_Contact: item.emergency_Contact,
+                    email: item.email,
+                    dob: item.dob,
+                    address: item.address,
+                    start_Time: item.start_Time,
+                    end_Time: item.end_Time,
+                    salary: item.salary,
+                    join_Date: item.join_Date,
+                    account_Number: item.account_Number,
+                    ifsc_Code: item.ifsc_Code,
+                    bank_Name: item.bank_Name,
+                    bank_Holder_Name: item.bank_Holder_Name,
+                    images: [],
+                };
+
+                const saved = await Employees.create(newEmployee);
+                insertedData.push(saved);
+
+            } catch (err) {
+                skippedData.push({ data: item, error: err.message });
+            }
+        }
+
+        return res.status(200).json({
+            message: "Excel uploaded successfully",
+            total: sheetData.length,
+            inserted: insertedData.length,
+            skipped: skippedData.length,
+            insertedData,
+            skippedData
+        });
+
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};
+
+
+module.exports = { add_Employees, getAll_Employees, getOne_Employee, update_Employee, delete_Employee ,uploadExcelEmployees };

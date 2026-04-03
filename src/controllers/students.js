@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const { Students } = require("../modals/students");
+const XLSX = require("xlsx");
 
 
 const add_Student = async (req, res) => {
@@ -123,6 +124,69 @@ const search_Student = async (req, res) => {
         return res.status(500).json({ message: error.message })
     }
 }
+const uploadExcelStudents = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Please upload Excel file" });
+        }
 
+        const workbook = XLSX.readFile(req.file.path);
+        const sheetName = workbook.SheetNames[0];
+        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-module.exports = { add_Student, getAll_Student, getOne_Student, update_Student, delete_Student, search_Student }
+        let insertedData = [];
+        let skippedData = [];
+
+        for (let item of sheetData) {
+            try {
+                // duplicate check
+                const exist = await Students.findOne({ email: item.email });
+                if (exist) {
+                    skippedData.push({ email: item.email, reason: "Already exists" });
+                    continue;
+                }
+
+                // password hash
+                const hashedPassword = await bcrypt.hash(item.password, 10);
+
+                const newStudent = {
+                    course_Id: item.course_Id,
+                    batch_Id: item.batch_Id,
+                    enrollment_Id: item.enrollment_Id,
+                    name: item.name,
+                    father_Name: item.father_Name,
+                    mother_Name: item.mother_Name,
+                    address: item.address,
+                    aadhar: item.aadhar,
+                    pan_Card: item.pan_Card,
+                    emi: item.emi,
+                    contact: item.contact,
+                    email: item.email,
+                    password: hashedPassword,
+                    dob: item.dob,
+                    image: ""
+                };
+
+                const saved = await Students.create(newStudent);
+                insertedData.push(saved);
+
+            } catch (err) {
+                skippedData.push({ data: item, error: err.message });
+            }
+        }
+
+        return res.status(200).json({
+            message: "Students Excel uploaded successfully",
+            total: sheetData.length,
+            inserted: insertedData.length,
+            skipped: skippedData.length,
+            insertedData,
+            skippedData
+        });
+
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { add_Student, getAll_Student, getOne_Student, update_Student, delete_Student, search_Student, uploadExcelStudents }
