@@ -50,7 +50,7 @@ const getAll = async (req, res) => {
 
 const getOne = async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = req.params.id;
         const data = await Batches.findById(id);
 
         if (!data) {
@@ -66,7 +66,7 @@ const getOne = async (req, res) => {
 
 const update = async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = req.params.id;
         const { batch_Name, start_Date, end_Date, start_Time, end_Time, status } = req.body;
 
         if (!batch_Name || !start_Date || !end_Date || !start_Time || !end_Time || !status) {
@@ -96,7 +96,7 @@ const update = async (req, res) => {
 
 const del = async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = req.params.id;
         const deleted_data = await Batches.findByIdAndDelete(id);
 
         if (!deleted_data) {

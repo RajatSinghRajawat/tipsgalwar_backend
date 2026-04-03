@@ -1,111 +1,102 @@
 const mongoose = require("mongoose");
 
-const employeeSchema = new mongoose.Schema(
-  {
+
+const employee_Schema = new mongoose.Schema({
     name: {
-      type: String,
-      required: true,
-      trim: true
+        type: String,
+        required: true,
+        trim: true
     },
-
     password: {
-      type: String,
-      required: true
+        type: String,
+        required: true,
+        select: false
     },
-
     qualification: {
-      type: String,
-      required: true
+        type: String,
+        required: true
     },
-
     institute: {
-      type: String,
-      required: true
+        type: String,
+        required: true
     },
-
     department: {
-      type: String,
-      required: true
+        type: String,
+        required: true
     },
-
-    mobileNumber: {
-      type: String,
-      required: true
+    mobile_Number: {
+        type: String,
+        required: true,
+        match: /^[0-9]{10}$/
     },
-
-    emergencyContact: {
-      type: String,
-      required: true
+    emergency_Contact: {
+        type: String,
+        required: true,
+        match: /^[0-9]{10}$/
     },
-
     email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true
     },
-
     dob: {
-      type: Date,
-      required: true
+        type: Date,
+        required: true
     },
-
     address: {
-      type: String,
-      required: true
+        street: { type: String, required: true },
+        city: { type: String, required: true },
+        state: { type: String, required: true },
+        pincode: { type: String, required: true }
     },
-
-    startTime: {
-      type: String
+    start_Time: {
+        type: String,
+        required: true,
+        default: "09:00"
     },
-
-    endTime: {
-      type: String
+    end_Time: {
+        type: String,
+        required: true,
+        default: "18:00"
     },
-
     salary: {
-      type: Number,
-      required: true
+        type: Number,
+        required: true,
+        default: 0
     },
-
-    joinDate: {
-      type: Date,
-      default: Date.now
+    join_Date: {
+        type: Date,
+        required: true
     },
-
-    accountNumber: {
-      type: String,
-      required: true
+    account_Number: {
+        type: String,
+        required: true,
+        match: /^[0-9]{9,18}$/
     },
-
-    ifscCode: {
-      type: String,
-      required: true
+    ifsc_Code: {
+        type: String,
+        required: true
     },
-
-    bankName: {
-      type: String,
-      required: true
+    bank_Name: {
+        type: String,
+        required: true
     },
-
-    bankHolderName: {
-      type: String,
-      required: true
+    bank_Holder_Name: {
+        type: String,
+        required: true
     },
-    images:{
-      type: [String],
-      required: true
+    images: {
+        type: [String],
+        required: true,
+        default: []
     }
-  },
-
-  {
-    timestamps: true
-  }
+}, { timestamps: true }
 );
 
-// Model Create
-const Employee = mongoose.model("Employee", employeeSchema);
 
-// Export Model
-module.exports = Employee;
+const Employees = mongoose.model("Employees", employee_Schema);
+
+
+module.exports = { Employees }

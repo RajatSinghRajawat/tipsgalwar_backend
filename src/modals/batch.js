@@ -1,9 +1,11 @@
 const mongoose = require("mongoose");
 
-const fields = mongoose.Schema({
+
+const fields = new mongoose.Schema({
     batch_Name: {
         type: String,
-        required: true
+        required: true,
+        trim: true
     },
     start_Date: {
         type: Date,
@@ -14,16 +16,17 @@ const fields = mongoose.Schema({
         required: true
     },
     start_Time: {
-        type: Date,
+        type: String,
         required: true
     },
     end_Time: {
-        type: Date,
+        type: String,
         required: true
     },
     status: {
         type: String,
-        required: true
+        required: true,
+        enum: ["Active", "Inactive"]
     },
     images: {
         type: [String],
@@ -32,6 +35,8 @@ const fields = mongoose.Schema({
     }
 })
 
-const Batches = mongoose.model("Batch", fields);
+
+const Batches = mongoose.model("Batches", fields);
+
 
 module.exports = { Batches }
