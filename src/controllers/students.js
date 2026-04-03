@@ -4,31 +4,31 @@ const { Students } = require("../modals/students");
 
 const add_Student = async (req, res) => {
     try {
-        const { course_id, batch_id, enrollment_id, name, father_name, mother_name, address, aadhar, pan_card, emi, contact, email, password, dob } = req.body;
+        const { course_Id, batch_Id, enrollment_Id, name, father_Name, mother_Name, address, aadhar, pan_Card, emi, contact, email, password, dob } = req.body;
         
-        if (!course_id || !batch_id || !enrollment_id || !name || !father_name || !mother_name || !address || !aadhar || !pan_card || !emi || !contact || !email || !password || !dob) {
+        if (!course_Id || !batch_Id || !enrollment_Id || !name || !father_Name || !mother_Name || !address || !aadhar || !pan_Card || !emi || !contact || !email || !password || !dob) {
             return res.status(400).json({ message: "All fields are required." });
         }
         
-        const existing = await Students.findOne({ email });
+        const existingStudent = await Students.findOne({ email });
         
-        if (existing) {
-            return res.status(400).json({ message: "Email already exists" });
+        if (existingStudent) {
+            return res.status(400).json({ message: "Student with this email already exists" });
         }
 
         const image = req.file?.filename;
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const data = await Students.create({
-            course_id,
-            batch_id,
-            enrollment_id,
+            course_Id,
+            batch_Id,
+            enrollment_Id,
             name,
-            father_name,
-            mother_name,
+            father_Name,
+            mother_Name,
             address,
             aadhar,
-            pan_card,
+            pan_Card,
             emi,
             contact,
             email,
@@ -39,20 +39,18 @@ const add_Student = async (req, res) => {
 
         return res.status(201).json({ message: "Data added Successfully.", data })
     } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({ message: error.message })
+        return res.status(500).json({ message: error.message });
     }
 }
 
 
 const getAll_Student = async (req, res) => {
     try {
-        const data = await Students.find().populate('course_id').populate('batch_id').populate('enrollment_id');
+        const data = await Students.find().populate('course_Id').populate('batch_Id').populate('enrollment_Id');
 
         return res.status(200).json({ message: "Data fetched Successfully.", data })
     } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({ message: error.message })
+        return res.status(500).json({ message: error.message });
     }
 }
 
@@ -68,8 +66,7 @@ const getOne_Student = async (req, res) => {
 
         return res.status(200).json({ message: "Data fetched Successfully.", data })
     } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({ message: error.message })
+        return res.status(500).json({ message: error.message });
     }
 }
 
@@ -83,7 +80,7 @@ const update_Student = async (req, res) => {
         }
 
         const updated_Data = await Students.findByIdAndUpdate(id, req.body, 
-            // { new: true, runValidators: true }
+            // { new: true }
         )
         
         if (!updated_Data) {
@@ -92,8 +89,7 @@ const update_Student = async (req, res) => {
 
         return res.status(200).json({ message: "Data updated Successfully.", updated_Data })
     } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({ message: error.message })
+        return res.status(500).json({ message: error.message });
     }
 }
 
@@ -101,15 +97,15 @@ const update_Student = async (req, res) => {
 const delete_Student = async (req, res) => {
     try {
         const id = req.params.id;
-        const deleted_Data = await Students.findByIdAndDelete(id)
+        const deleted_Data = await Students.findByIdAndDelete(id);
+
         if (!deleted_Data) {
             return res.status(404).json({ message: "Data not found." });
         }
 
         return res.status(200).json({ message: "Data deleted Successfully.", deleted_Data })
     } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({ message: error.message })
+        return res.status(500).json({ message: error.message });
     }
 }
 

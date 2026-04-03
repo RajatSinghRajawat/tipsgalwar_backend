@@ -1,35 +1,32 @@
-const express = require('express');
-const cors = require('cors');
-const { connectDb } = require('./src/config/config');
+const express = require("express");
+const path = require("path");
+const cors = require("cors");
+const { connectDb } = require("./src/config/config");
 
-const path = require('path');
-const router = require('./src/routes/batch');
+const batch_Router = require("./src/routes/batch");
+const course_Router = require("./src/routes/course");
+const employee_Router = require("./src/routes/employees");
+const student_Router = require("./src/routes/students");
 
 const port = process.env.PORT || 3005;
-
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.use('/apis', router);
-app.use(express.static('public/Uploads'));
-
-connectDb();
-
-app.use('/api/employees', require('./src/routes/employeesroutes'));
+app.use(express.static("public/Uploads"));
 app.use("/public", express.static(path.join(__dirname, "public", "Uploads")));
 
+app.use("/apis/batch", batch_Router);
+app.use("/apis/course", course_Router);
+app.use("/apis/employee", employee_Router);
+app.use("/apis/student", student_Router);
+
+// Keep the older employee base path working for existing clients.
+app.use("/api/employees", employee_Router);
+
+connectDb();
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
-
-
-
-
-
-
-
-
-

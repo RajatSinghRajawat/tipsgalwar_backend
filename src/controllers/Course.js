@@ -1,112 +1,108 @@
-const { Courses } = require("../modals/Course");
+const { Courses } = require("../modals/course");
+
 
 const add = async (req, res) => {
-  try {
-    const { course_name, type, duration, course_price, discount_price, status } = req.body;
+    try {
+        const { course_Name, type, duration, course_Price, discount_Price, status } = req.body;
 
-    if ( !course_name || !type || !duration || !course_price || !discount_price || !status ) {
-      return res.status(400).json({
-        message: "All fields are required",
-      });
+        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        const banner = req.files?.map(file => file.path) || (req.file ? [req.file.path] : []);
+
+        
+        const existingCourse = await Courses.findOne({ course_Name });
+        if (existingCourse) {
+            return res.status(400).json({ message: "Course with this name already exists" });
+        }
+
+        const added_Data = await Courses.create({
+            course_Name,
+            type,
+            duration,
+            course_Price,
+            discount_Price,
+            status,
+            banner: banner
+        });
+
+        return res.status(201).json({ message: "Course added Successfully.", added_Data });
     }
-
-    const banner = req.files.map((file) => file.path);
-
-    const added_Data = await Courses.create({
-      course_name,
-      type,
-      duration,
-      course_price,
-      discount_price,
-      status,
-      banner: banner
-    });
-
-    return res.status(201).json({ message: "Course added successfully", added_Data });
-  }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+    catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
 };
+
 
 const getAll = async (req, res) => {
-  try {
-    const courses = await Courses.find().sort({ createdAt: -1 });
+    try {
+        const data = await Courses.find().sort({ createdAt: -1 });
 
-    return res.status(200).json({ message: "Courses fetched successfully", courses });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+        return res.status(200).json({ message: "Courses fetched Successfully.", data });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
 };
+
 
 const getOne = async (req, res) => {
-  try {
-    const { id } = req.params;
+    try {
+        const id = req.params.id;
+        const data = await Courses.findById(id);
 
-    const course = await Courses.findById(id);
+        if (!data) {
+            return res.status(404).json({ message: "Course not found" });
+        }
 
-    if (!course) {
-      return res.status(404).json({ message: "Course not found" });
+        return res.status(200).json({ message: "Course fetched Successfully.", data });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
     }
-
-    return res.status(200).json({ message: "Course fetched successfully", course });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
 };
+
 
 const update = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const { course_name, type, duration, course_price, discount_price, status } = req.body;
+    try {
+        const id = req.params.id;
+        const { course_Name, type, duration, course_Price, discount_Price, status } = req.body;
 
-    if (req.files.length > 0) {
-      var image = req.files.map((file) => file.filename);
+        if (req.files.length > 0) {
+            var image = req.files.map((file) => file.filename);
+        }
+
+        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        
+        const updated_Data = await Courses.findByIdAndUpdate(id, { course_Name, type, duration, course_Price, discount_Price, status, banner: image || undefined }, { new: true });
+
+        if (!updated_Data) {
+            return res.status(404).json({ message: "Course not found" });
+        }
+
+        return res.status(200).json({ message: "Course updated Successfully.", updated_Data });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
     }
-
-    if ( !course_name || !type || !duration || !course_price || !discount_price || !status ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const updated = await Courses.findByIdAndUpdate(
-      id,
-      {
-        course_name,
-        type,
-        duration,
-        course_price,
-        discount_price,
-        status,
-        banner: image || undefined,
-      },
-      { new: true },
-    );
-
-    if (!updated) {
-      return res.status(404).json({ message: "Course not found", updated });
-    }
-
-    return res.status(200).json({ message: "Course updated successfully", updated });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
 };
+
 
 const del = async (req, res) => {
-  try {
-    const { id } = req.params;
+    try {
+        const id = req.params.id;
+        const deleted_Data = await Courses.findByIdAndDelete(id);
 
-    const deleted = await Courses.findByIdAndDelete(id);
+        if (!deleted_Data) {
+            return res.status(404).json({ message: "Course not found" });
+        }
 
-    if (!deleted) {
-      return res.status(404).json({ message: "Course not found" });
+        return res.status(200).json({ message: "Course deleted Successfully.", deleted_Data });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
     }
-
-    return res.status(200).json({ message: "Course deleted successfully" });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
 };
+
 
 module.exports = { add, getAll, getOne, update, del };
