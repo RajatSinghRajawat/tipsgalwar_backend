@@ -10,7 +10,9 @@ const student_Router = require('./src/routes/students');
 const port = process.env.PORT || 3005;
 
 const app = express();
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 app.use(express.static('public/Uploads'));
@@ -19,7 +21,6 @@ app.use('/apis/batch', batch_Router);
 app.use('/apis/course', course_Router);
 app.use('/apis/employee', employee_Router);
 app.use('/apis/student', student_Router);
-
 connectDb();
 
 app.listen(port, () => {

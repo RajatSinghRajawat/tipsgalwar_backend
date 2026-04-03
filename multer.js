@@ -14,21 +14,22 @@ const upload = multer({
     storage: storage,
 
     fileFilter: (req, file, cb) => {
-        const filetypes = /avif|jpeg|jpg|png|gif|webp|svg|mp4|webm|dat|xlsx|xls|csv/;
+        const allowedExtensions = /avif|jpeg|jpg|png|gif|webp|svg|mp4|webm|dat|xlsx|xls|csv/;
+        const allowedMimeTypes = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
+            'video/mp4', 'video/webm',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'text/csv'
+        ];
 
-        const extname = filetypes.test(
-            path.extname(file.originalname).toLowerCase(),
-        );
+        const extName = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+        const mimeType = allowedMimeTypes.includes(file.mimetype);
 
-        const mimetype =
-            file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-            file.mimetype === "application/vnd.ms-excel" ||
-            file.mimetype === "text/csv";
-
-        if (mimetype && extname) {
+        if (mimeType && extName) {
             return cb(null, true);
         } else {
-            return cb("invalid file type", false);
+            return cb(new Error("invalid file type"), false);
         }
     },
 });
