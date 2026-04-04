@@ -6,13 +6,13 @@ const XLSX = require("xlsx");
 const add_Student = async (req, res) => {
     try {
         const { course_Id, batch_Id, enrollment_Id, name, father_Name, mother_Name, address, aadhar, pan_Card, emi, contact, email, password, dob } = req.body;
-        
+
         if (!course_Id || !batch_Id || !enrollment_Id || !name || !father_Name || !mother_Name || !address || !aadhar || !pan_Card || !emi || !contact || !email || !password || !dob) {
             return res.status(400).json({ message: "All fields are required." });
         }
-        
+
         const existingStudent = await Students.findOne({ email });
-        
+
         if (existingStudent) {
             return res.status(400).json({ message: "Student with this email already exists" });
         }
@@ -80,10 +80,10 @@ const update_Student = async (req, res) => {
             req.body.image = req.file?.filename;
         }
 
-        const updated_Data = await Students.findByIdAndUpdate(id, req.body, 
+        const updated_Data = await Students.findByIdAndUpdate(id, req.body,
             // { new: true }
         )
-        
+
         if (!updated_Data) {
             return res.status(404).json({ message: "Data not found." });
         }

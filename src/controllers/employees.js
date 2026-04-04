@@ -122,7 +122,7 @@ const update_Employee = async (req, res) => {
         }
 
         const updated_Data = await Employees.findByIdAndUpdate(id, req.body,
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!updated_Data) {
@@ -154,14 +154,6 @@ const delete_Employee = async (req, res) => {
         return res.status(500).json({ message: error.message });
     }
 };
-
-
-
-
-
-
-
-
 
 
 
@@ -237,4 +229,4 @@ const uploadExcelEmployees = async (req, res) => {
 };
 
 
-module.exports = { add_Employees, getAll_Employees, getOne_Employee, update_Employee, delete_Employee ,uploadExcelEmployees };
+module.exports = { add_Employees, getAll_Employees, getOne_Employee, update_Employee, delete_Employee, uploadExcelEmployees };

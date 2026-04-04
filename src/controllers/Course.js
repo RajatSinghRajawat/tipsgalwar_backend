@@ -11,7 +11,7 @@ const add = async (req, res) => {
 
         const banner = req.files?.map(file => file.path) || (req.file ? [req.file.path] : []);
 
-        
+
         const existingCourse = await Courses.findOne({ course_Name });
         if (existingCourse) {
             return res.status(400).json({ message: "Course with this name already exists" });
@@ -75,7 +75,7 @@ const update = async (req, res) => {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        
+
         const updated_Data = await Courses.findByIdAndUpdate(id, { course_Name, type, duration, course_Price, discount_Price, status, banner: image || undefined }, { new: true });
 
         if (!updated_Data) {
