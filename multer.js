@@ -1,37 +1,47 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+const uploadsDir = path.join(__dirname, "public", "Uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, "public/Uploads");
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + " " + file.originalname);
-    },
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const safeName = path
+      .basename(file.originalname)
+      .replace(/[\/\\?%*:|"<>]/g, "-")
+      .trim()
+      .replace(/\s+/g, "_");
+
+    cb(null, `${Date.now()}-${safeName}`);
+  },
 });
 
 const upload = multer({
-    storage: storage,
+  storage: storage,
 
-    fileFilter: (req, file, cb) => {
-        const allowedExtensions = /avif|jpeg|jpg|png|gif|webp|svg|mp4|webm|dat|xlsx|xls|csv/;
-        const allowedMimeTypes = [
-            'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
-            'video/mp4', 'video/webm',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel',
-            'text/csv'
-        ];
+  fileFilter: (req, file, cb) => {
+    const filetypes = /\.(avif|jpeg|jpg|png|gif|webp|mp4|webm|xlsx|xls|csv)$/i;
+    const mimetypes = /^(image|video)\//;
 
-        const extName = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-        const mimeType = allowedMimeTypes.includes(file.mimetype);
+    const extname = filetypes.test(file.originalname.toLowerCase());
+    const mimetype =
+      mimetypes.test(file.mimetype) ||
+      file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel" ||
+      file.mimetype === "text/csv";
 
-        if (mimeType && extName) {
-            return cb(null, true);
-        } else {
-            return cb(new Error("invalid file type"), false);
-        }
-    },
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      return cb(new Error("Only images, videos, and Excel/CSV files are allowed!"), false);
+    }
+  },
 });
 
 module.exports = upload;

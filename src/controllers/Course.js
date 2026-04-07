@@ -9,7 +9,7 @@ const add = async (req, res) => {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        const banner = req.files?.map(file => file.path) || (req.file ? [req.file.path] : []);
+        const banner = req.files?.map(file => file.filename) || (req.file ? [req.file.filename] : []);
 
 
         const existingCourse = await Courses.findOne({ course_Name });
