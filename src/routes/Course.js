@@ -2,7 +2,7 @@ const express = require('express');
 const course_Router = express.Router();
 
 const upload = require('../../multer');
-const { add, getAll, getOne, update, del } = require('../controllers/course');
+const { add, getAll, getOne, update, del } = require('../controllers/Course');
 
 
 course_Router.post('/add', upload.array('banner'), add);

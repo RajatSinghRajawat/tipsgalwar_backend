@@ -60,7 +60,7 @@ const getOne_Student = async (req, res) => {
     try {
         const id = req.params.id;
 
-        const data = await Students.findById(id);
+        const data = await Students.findById(id).populate('course_Id').populate('batch_Id');
         if (!data) {
             return res.status(404).json({ message: "Data not found." });
         }

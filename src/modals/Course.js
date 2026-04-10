@@ -38,7 +38,7 @@ const fields = new mongoose.Schema({
 );
 
 
-const Courses = mongoose.model("Courses", fields);
+const Courses = mongoose.models.Courses || mongoose.model("Courses", fields);
 
 
 module.exports = { Courses };

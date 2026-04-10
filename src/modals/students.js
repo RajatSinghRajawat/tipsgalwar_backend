@@ -15,8 +15,7 @@ const fields = new mongoose.Schema({
         required: true
     },
     enrollment_Id: {
-        type: mongoose.Schema.Types.ObjectId,
-        // ref: "Enrollments",
+        type: String,
         required: true,
         unique: true
     },
@@ -49,12 +48,12 @@ const fields = new mongoose.Schema({
     pan_Card: {
         type: String,
         required: true,
-        match: /^[0-9]{12}$/
+        match: /^[A-Z]{5}[0-9]{4}[A-Z]$/
     },
     emi: {
         type: String,
         required: true,
-        enum: ["2 months EMI", "4 months EMI", "6 months EMI", "Yearly"]
+        enum: ["Monthly", "Quarterly", "Semester", "Yearly"]
     },
     contact: {
         type: String,
@@ -85,7 +84,7 @@ const fields = new mongoose.Schema({
 })
 
 
-const Students = mongoose.model('Students', fields);
+const Students = mongoose.models.Students || mongoose.model('Students', fields);
 
 
 module.exports = { Students }
