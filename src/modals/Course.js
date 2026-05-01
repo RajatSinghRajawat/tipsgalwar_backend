@@ -34,6 +34,15 @@ const fields = new mongoose.Schema({
         required: true,
         default: []
     },
+    description: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    date: {
+        type: String,
+        required: true
+    }
 }, { timestamps: true }
 );
 

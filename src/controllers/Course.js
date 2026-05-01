@@ -3,9 +3,9 @@ const { Courses } = require("../modals/Course");
 
 const add = async (req, res) => {
     try {
-        const { course_Name, type, duration, course_Price, discount_Price, status, date } = req.body;
+        const { course_Name, type, duration, course_Price, discount_Price, status, date, description } = req.body;
 
-        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status || !date) {
+        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status || !date || !description) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -25,6 +25,7 @@ const add = async (req, res) => {
             discount_Price,
             status,
             date,
+            description,
             banner: banner
         });
 
@@ -66,18 +67,18 @@ const getOne = async (req, res) => {
 const update = async (req, res) => {
     try {
         const id = req.params.id;
-        const { course_Name, type, duration, course_Price, discount_Price, status, date } = req.body;
+        const { course_Name, type, duration, course_Price, discount_Price, status, date, description } = req.body;
 
-        if (req.files.length > 0) {
+        if (req.files && req.files.length > 0) {
             var image = req.files.map((file) => file.filename);
         }
 
-        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status || !date) {
+        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status || !date || !description) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
 
-        const updated_Data = await Courses.findByIdAndUpdate(id, { course_Name, type, duration, course_Price, discount_Price, status, date, banner: image || undefined }, { new: true });
+        const updated_Data = await Courses.findByIdAndUpdate(id, { course_Name, type, duration, course_Price, discount_Price, status, date, description, banner: image || undefined }, { new: true });
 
         if (!updated_Data) {
             return res.status(404).json({ message: "Course not found" });
