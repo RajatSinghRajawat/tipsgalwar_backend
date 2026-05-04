@@ -1,4 +1,4 @@
-const { Apply } = require("../modals/apply");
+const { Apply } = require("../models/apply");
 
 // ================= CREATE APPLY =================
 const createApply = async (req, res) => {

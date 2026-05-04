@@ -7,7 +7,9 @@ const {
   getPayments,
   searchPayment,
   getPaymentById,
-  updatePayment
+  updatePayment,
+  deletePayment,
+  generateReceipt
 } = require('../controllers/payment');
 
 router.post('/create-order', createOrder);
@@ -17,5 +19,7 @@ router.get('/', getPayments);
 router.get('/search', searchPayment);
 router.get('/:id', getPaymentById);
 router.put('/:id', updatePayment);
+router.delete('/:id', deletePayment);
+router.get('/:id/receipt', generateReceipt);
 
 module.exports = router;

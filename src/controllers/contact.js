@@ -1,4 +1,4 @@
-const { Contact } = require("../modals/contact");
+const { Contact } = require("../models/contact");
 
 // CREATE CONTACT
 const contact = async (req, res) => {

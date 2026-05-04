@@ -1,4 +1,4 @@
-const { Courses } = require("../modals/Course");
+const { Courses } = require("../models/Course");
 
 
 const add = async (req, res) => {

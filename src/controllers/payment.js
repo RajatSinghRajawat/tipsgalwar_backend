@@ -1,19 +1,22 @@
 const crypto = require('crypto');
+const axios = require('axios');
 const mongoose = require('mongoose');
-const Razorpay = require('razorpay');
-const Payment = require('../modals/payment');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const Payment = require('../models/payment');
 
-const getRazorpayInstance = () => {
+const getRazorpayCredentials = () => {
   const { RAZORPAY_KEY_ID, RAZORPAY_SECRET } = process.env;
 
   if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
     throw new Error('Razorpay credentials are missing in environment variables.');
   }
 
-  return new Razorpay({
-    key_id: RAZORPAY_KEY_ID,
-    key_secret: RAZORPAY_SECRET
-  });
+  return {
+    keyId: RAZORPAY_KEY_ID,
+    keySecret: RAZORPAY_SECRET
+  };
 };
 
 const parseAmount = (amount) => {
@@ -27,6 +30,86 @@ const parseAmount = (amount) => {
 };
 
 const isValidObjectId = (value) => mongoose.isValidObjectId(value);
+
+const sanitizeReceipt = (value) => {
+  const normalizedReceipt = String(value || '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .slice(0, 40);
+
+  return normalizedReceipt || `receipt_${Date.now()}`;
+};
+
+const createRazorpayOrder = async ({ amount, currency, receipt }) => {
+  const { keyId, keySecret } = getRazorpayCredentials();
+
+  const response = await axios.post(
+    'https://api.razorpay.com/v1/orders',
+    {
+      amount: Math.round(amount * 100),
+      currency: String(currency).toUpperCase(),
+      receipt: sanitizeReceipt(receipt)
+    },
+    {
+      auth: {
+        username: keyId,
+        password: keySecret
+      },
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    }
+  );
+
+  return {
+    key: keyId,
+    order: response.data
+  };
+};
+
+const formatPaymentError = (error, fallbackMessage) => {
+  const errorCode = error?.code || error?.cause?.code || null;
+  const networkCodes = new Set([
+    'EACCES',
+    'EAI_AGAIN',
+    'ECONNABORTED',
+    'ECONNREFUSED',
+    'ENETUNREACH',
+    'ENOTFOUND',
+    'ETIMEDOUT'
+  ]);
+
+  if (
+    networkCodes.has(errorCode) ||
+    error?.message === "Cannot read properties of undefined (reading 'status')"
+  ) {
+    return {
+      statusCode: 503,
+      message:
+        'Could not reach Razorpay from the backend. Check the server internet connection, firewall, or proxy settings.',
+      details: errorCode || error?.message || null
+    };
+  }
+
+  const razorpayDetails =
+    error?.response?.data?.error ||
+    error?.error ||
+    null;
+
+  const specificMessage =
+    razorpayDetails?.description ||
+    razorpayDetails?.reason ||
+    error?.response?.data?.message ||
+    error?.message ||
+    fallbackMessage;
+
+  return {
+    statusCode: error?.statusCode || error?.response?.status || 500,
+    message: specificMessage,
+    details: razorpayDetails || null
+  };
+};
 
 const parseBooleanFlag = (value) => {
   if (typeof value === 'boolean') {
@@ -46,6 +129,115 @@ const parseBooleanFlag = (value) => {
   }
 
   return Boolean(value);
+};
+
+const generateReceiptPDF = (payment, student) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers = [];
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+
+      // Header
+      doc.fontSize(20).text('TIPS GALWAR - Payment Receipt', { align: 'center' });
+      doc.moveDown();
+
+      // Receipt details
+      doc.fontSize(12);
+      doc.text(`Receipt No: ${payment.receipt || payment._id}`);
+      doc.text(`Date: ${new Date(payment.payment_date || payment.created_at).toLocaleDateString()}`);
+      doc.moveDown();
+
+      // Student details
+      doc.fontSize(14).text('Student Details:', { underline: true });
+      doc.fontSize(12);
+      doc.text(`Name: ${student.name}`);
+      doc.text(`Enrollment ID: ${student.enrollment_Id}`);
+      doc.text(`Email: ${student.email}`);
+      doc.text(`Contact: ${student.contact}`);
+      doc.moveDown();
+
+      // Payment details
+      doc.fontSize(14).text('Payment Details:', { underline: true });
+      doc.fontSize(12);
+      doc.text(`EMI Type: ${payment.emi_type || 'N/A'}`);
+      doc.text(`EMI Number: ${payment.emi_number || 1} of ${payment.total_emis || 1}`);
+      doc.text(`Amount Paid: ₹${payment.amount}`);
+      if (payment.emi_discount > 0) {
+        doc.text(`EMI Discount: ₹${payment.emi_discount}`);
+        doc.text(`Net Amount: ₹${payment.amount - payment.emi_discount}`);
+      }
+      doc.text(`Transaction ID: ${payment.txn_id || payment.razorpay_payment_id || 'N/A'}`);
+      doc.moveDown();
+
+      // Next payment info
+      if (payment.emi_duedate) {
+        doc.fontSize(14).text('Next Payment Due:', { underline: true });
+        doc.fontSize(12);
+        doc.text(`Due Date: ${new Date(payment.emi_duedate).toLocaleDateString()}`);
+        doc.text(`Next EMI Number: ${payment.emi_number + 1}`);
+        doc.text(`Amount Due: ₹${payment.amount}`);
+      }
+
+      // Footer
+      doc.moveDown(2);
+      doc.fontSize(10).text('Thank you for your payment!', { align: 'center' });
+      doc.text('TIPS GALWAR Institute', { align: 'center' });
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const calculateEMIDetails = async (student_id, emi_type) => {
+  // Get all payments for this student
+  const payments = await Payment.find({ 
+    student_id, 
+    is_paid: true 
+  }).sort({ payment_date: 1 });
+
+  const emi_number = payments.length + 1;
+  
+  // Calculate total EMIs based on course duration (this is a simple assumption)
+  // In a real app, this should come from course/batch configuration
+  let total_emis = 12; // default monthly
+  if (emi_type === 'quarterly') total_emis = 4;
+  else if (emi_type === 'semester') total_emis = 2;
+  else if (emi_type === 'yearly') total_emis = 1;
+
+  // Calculate next due date
+  let nextDueDate = null;
+  if (emi_number < total_emis) {
+    const lastPaymentDate = payments.length > 0 ? 
+      new Date(payments[payments.length - 1].payment_date) : new Date();
+    
+    if (emi_type === 'monthly') {
+      nextDueDate = new Date(lastPaymentDate);
+      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+    } else if (emi_type === 'quarterly') {
+      nextDueDate = new Date(lastPaymentDate);
+      nextDueDate.setMonth(nextDueDate.getMonth() + 3);
+    } else if (emi_type === 'semester') {
+      nextDueDate = new Date(lastPaymentDate);
+      nextDueDate.setMonth(nextDueDate.getMonth() + 6);
+    } else if (emi_type === 'yearly') {
+      nextDueDate = new Date(lastPaymentDate);
+      nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+    }
+  }
+
+  return {
+    emi_number,
+    total_emis,
+    nextDueDate
+  };
 };
 
 exports.createOrder = async (req, res) => {
@@ -69,11 +261,10 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Invalid student_id.' });
     }
 
-    const razorpay = getRazorpayInstance();
-    const order = await razorpay.orders.create({
-      amount: Math.round(parsedAmount * 100),
-      currency: String(currency).toUpperCase(),
-      receipt: receipt || `receipt_${Date.now()}`
+    const { key, order } = await createRazorpayOrder({
+      amount: parsedAmount,
+      currency,
+      receipt
     });
 
     let payment = null;
@@ -94,14 +285,19 @@ exports.createOrder = async (req, res) => {
 
     return res.status(201).json({
       message: 'Order created successfully.',
-      key: process.env.RAZORPAY_KEY_ID,
+      key,
       order,
       payment
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error creating order.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not create Razorpay order.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };
@@ -115,6 +311,7 @@ exports.verifyPayment = async (req, res) => {
       student_id,
       amount,
       emi_discount,
+      emi_type,
       emi_duedate,
       payment_date
     } = req.body;
@@ -177,20 +374,30 @@ exports.verifyPayment = async (req, res) => {
         payment.emi_discount = emi_discount;
       }
 
+      if (typeof emi_type !== 'undefined') {
+        payment.emi_type = emi_type || null;
+      }
+
       if (typeof emi_duedate !== 'undefined') {
         payment.emi_duedate = emi_duedate || null;
       }
 
       await payment.save();
     } else if (student_id && parsedAmount) {
+      // Calculate EMI details for new payment
+      const emiDetails = emi_type ? await calculateEMIDetails(student_id, emi_type) : { emi_number: 1, total_emis: 1, nextDueDate: null };
+
       payment = await Payment.create({
         txn_id: razorpay_payment_id,
         student_id,
         amount: parsedAmount,
         is_paid: true,
         emi_discount: emi_discount || 0,
+        emi_type: emi_type || null,
+        emi_number: emiDetails.emi_number,
+        total_emis: emiDetails.total_emis,
         payment_date: payment_date || new Date(),
-        emi_duedate: emi_duedate || null,
+        emi_duedate: emiDetails.nextDueDate,
         razorpay_order_id,
         razorpay_payment_id,
         razorpay_signature,
@@ -205,9 +412,14 @@ exports.verifyPayment = async (req, res) => {
       payment
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error verifying payment.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not verify payment.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };
@@ -220,6 +432,7 @@ exports.addPayment = async (req, res) => {
       amount,
       is_paid = false,
       emi_discount = 0,
+      emi_type,
       payment_date,
       emi_duedate,
       razorpay_order_id,
@@ -241,14 +454,20 @@ exports.addPayment = async (req, res) => {
       return res.status(400).json({ message: 'Valid amount is required.' });
     }
 
+    // Calculate EMI details
+    const emiDetails = emi_type ? await calculateEMIDetails(student_id, emi_type) : { emi_number: 1, total_emis: 1, nextDueDate: null };
+
     const payment = await Payment.create({
       txn_id: txn_id || razorpay_payment_id || null,
       student_id,
       amount: parsedAmount,
       is_paid: paidStatus,
       emi_discount,
+      emi_type: emi_type || null,
+      emi_number: emiDetails.emi_number,
+      total_emis: emiDetails.total_emis,
       payment_date: payment_date || null,
-      emi_duedate: emi_duedate || null,
+      emi_duedate: emiDetails.nextDueDate,
       razorpay_order_id: razorpay_order_id || null,
       razorpay_payment_id: razorpay_payment_id || null,
       razorpay_signature: razorpay_signature || null,
@@ -262,9 +481,14 @@ exports.addPayment = async (req, res) => {
       payment
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error adding payment.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not add payment.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };
@@ -281,9 +505,14 @@ exports.getPayments = async (req, res) => {
       payments
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error fetching payments.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not fetch payments.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };
@@ -307,9 +536,14 @@ exports.getPaymentById = async (req, res) => {
       payment
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error fetching payment.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not fetch payment.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };
@@ -354,9 +588,45 @@ exports.updatePayment = async (req, res) => {
       payment: updated
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error updating payment.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not update payment.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
+    });
+  }
+};
+
+exports.deletePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid payment id.' });
+    }
+
+    const deleted = await Payment.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: 'Payment not found.' });
+    }
+
+    return res.status(200).json({
+      message: 'Payment deleted successfully.',
+      payment: deleted
+    });
+  } catch (error) {
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not delete payment.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };
@@ -389,9 +659,51 @@ exports.searchPayment = async (req, res) => {
       payments
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'Error searching payments.',
-      error: error.message
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not search payments.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
+    });
+  }
+};
+
+exports.generateReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid payment id.' });
+    }
+
+    const payment = await Payment.findById(id).populate('student_id');
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found.' });
+    }
+
+    if (!payment.student_id) {
+      return res.status(404).json({ message: 'Student details not found for this payment.' });
+    }
+
+    const pdfBuffer = await generateReceiptPDF(payment, payment.student_id);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=receipt_${payment._id}.pdf`);
+
+    return res.send(pdfBuffer);
+  } catch (error) {
+    const { statusCode, message, details } = formatPaymentError(
+      error,
+      'Could not generate receipt.'
+    );
+
+    return res.status(statusCode).json({
+      message,
+      ...(details ? { details } : {})
     });
   }
 };

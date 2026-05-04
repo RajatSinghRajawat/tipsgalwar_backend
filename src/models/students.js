@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
-const Courses = require("../modals/course");
-const Batches = require("../modals/batch");
+const Courses = require("./course");
+const Batches = require("./batch");
 
 
 const fields = new mongoose.Schema({

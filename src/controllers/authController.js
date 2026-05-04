@@ -1,4 +1,4 @@
-const { Signup } = require("../modals/authmodals");
+const { Signup } = require("../models/authmodals");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const { Employees } = require("../modals/employees");
+const { Employees } = require("../models/employees");
 const XLSX = require("xlsx");
 
 

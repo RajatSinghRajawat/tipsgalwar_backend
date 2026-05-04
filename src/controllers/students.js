@@ -1,11 +1,51 @@
 const bcrypt = require("bcrypt");
-const { Students } = require("../modals/students");
+const { Students } = require("../models/students");
 const XLSX = require("xlsx");
 
+const normalizeNestedFields = (body) => {
+    const normalized = {};
+
+    for (const [rawKey, value] of Object.entries(body)) {
+        if (rawKey.includes('[')) {
+            const path = rawKey.replace(/\]/g, '').split('[');
+            let current = normalized;
+
+            path.forEach((segment, index) => {
+                if (index === path.length - 1) {
+                    current[segment] = value;
+                } else {
+                    if (!current[segment] || typeof current[segment] !== 'object') {
+                        current[segment] = {};
+                    }
+                    current = current[segment];
+                }
+            });
+        } else {
+            normalized[rawKey] = value;
+        }
+    }
+
+    return normalized;
+};
+
+const parseRequestBody = (req) => {
+    const body = normalizeNestedFields(req.body || {});
+
+    if (typeof body.address === 'string') {
+        try {
+            body.address = JSON.parse(body.address);
+        } catch (_) {
+            // keep raw string for validation errors if plain text was sent
+        }
+    }
+
+    return body;
+};
 
 const add_Student = async (req, res) => {
     try {
-        const { course_Id, batch_Id, enrollment_Id, name, father_Name, mother_Name, address, aadhar, pan_Card, emi, contact, email, password, dob } = req.body;
+        const parsedBody = parseRequestBody(req);
+        const { course_Id, batch_Id, enrollment_Id, name, father_Name, mother_Name, address, aadhar, pan_Card, emi, contact, email, password, dob } = parsedBody;
 
         if (!course_Id || !batch_Id || !enrollment_Id || !name || !father_Name || !mother_Name || !address || !aadhar || !pan_Card || !emi || !contact || !email || !password || !dob) {
             return res.status(400).json({ message: "All fields are required." });
@@ -38,7 +78,7 @@ const add_Student = async (req, res) => {
             image
         })
 
-        return res.status(201).json({ message: "Data added Successfully.", data })
+        return res.status(201).json({ message: "Data added Successfully.", data });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
@@ -75,20 +115,23 @@ const getOne_Student = async (req, res) => {
 const update_Student = async (req, res) => {
     try {
         const id = req.params.id;
+        const parsedBody = parseRequestBody(req);
 
         if (req.file) {
-            req.body.image = req.file?.filename;
+            parsedBody.image = req.file.filename;
         }
 
-        const updated_Data = await Students.findByIdAndUpdate(id, req.body,
-            // { new: true }
-        )
+        const updated_Data = await Students.findByIdAndUpdate(id, parsedBody, {
+            new: true,
+            runValidators: true,
+            context: 'query'
+        });
 
         if (!updated_Data) {
             return res.status(404).json({ message: "Data not found." });
         }
 
-        return res.status(200).json({ message: "Data updated Successfully.", updated_Data })
+        return res.status(200).json({ message: "Data updated Successfully.", updated_Data });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }

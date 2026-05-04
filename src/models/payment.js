@@ -26,6 +26,21 @@ const paymentSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  emi_type: {
+    type: String,
+    enum: ['monthly', 'quarterly', 'semester', 'yearly'],
+    default: null
+  },
+  emi_number: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
+  total_emis: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
   payment_date: {
     type: Date,
     default: null
