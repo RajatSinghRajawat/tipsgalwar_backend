@@ -7,15 +7,15 @@ const path = require('path');
 const Payment = require('../models/payment');
 
 const getRazorpayCredentials = () => {
-  const { RAZORPAY_KEY_ID, RAZORPAY_SECRET } = process.env;
+const secret = process.env.RAZORPAY_KEY_SECRET;
 
-  if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
     throw new Error('Razorpay credentials are missing in environment variables.');
   }
 
   return {
     keyId: RAZORPAY_KEY_ID,
-    keySecret: RAZORPAY_SECRET
+    keySecret: RAZORPAY_KEY_SECRET
   };
 };
 

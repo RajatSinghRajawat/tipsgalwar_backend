@@ -49,21 +49,6 @@ const paymentSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  razorpay_order_id: {
-    type: String,
-    trim: true,
-    default: null
-  },
-  razorpay_payment_id: {
-    type: String,
-    trim: true,
-    default: null
-  },
-  razorpay_signature: {
-    type: String,
-    trim: true,
-    default: null
-  },
   currency: {
     type: String,
     trim: true,
@@ -77,7 +62,7 @@ const paymentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['created', 'paid', 'failed'],
+    enum: ['paid', 'unpaid', 'pending'],
     default: 'created'
   }
 }, {
