@@ -40,6 +40,105 @@ const sanitizeReceipt = (value) => {
   return normalizedReceipt || `receipt_${Date.now()}`;
 };
 
+const paymentPopulateOptions = {
+  path: 'student_id',
+  populate: [
+    { path: 'course_Id', select: 'course_Name' },
+    { path: 'batch_Id', select: 'batch_Name' }
+  ]
+};
+
+const formatReceiptCurrency = (value) => {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return 'INR 0';
+  }
+
+  return `INR ${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+};
+
+const formatReceiptDate = (value, includeTime = false) => {
+  if (!value) {
+    return 'N/A';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'N/A';
+  }
+
+  return date.toLocaleString(
+    'en-IN',
+    includeTime
+      ? {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }
+      : {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }
+  );
+};
+
+const toTitleCase = (value) =>
+  String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getReceiptStatusLabel = (payment) => {
+  if (payment?.is_paid) {
+    return 'Paid';
+  }
+
+  return toTitleCase(payment?.status || 'pending');
+};
+
+const getReceiptPlanLabel = (payment) => {
+  if (payment?.is_full_payment) {
+    return 'Full Payment';
+  }
+
+  return payment?.emi_type ? toTitleCase(payment.emi_type) : 'N/A';
+};
+
+const getStudentCourseLabel = (student) => {
+  const course = student?.course_Id;
+
+  if (course && typeof course === 'object') {
+    return course.course_Name || 'N/A';
+  }
+
+  return course || 'N/A';
+};
+
+const getStudentBatchLabel = (student) => {
+  const batch = student?.batch_Id;
+
+  if (batch && typeof batch === 'object') {
+    return batch.batch_Name || 'N/A';
+  }
+
+  return batch || 'N/A';
+};
+
+const getStudentAddressLabel = (student) => {
+  const address = student?.address;
+
+  if (!address || typeof address !== 'object') {
+    return 'N/A';
+  }
+
+  const parts = [address.street, address.city, address.state, address.pincode].filter(Boolean);
+  return parts.length ? parts.join(', ') : 'N/A';
+};
+
 const createRazorpayOrder = async ({ amount, currency, receipt }) => {
   const { keyId, keySecret } = getRazorpayCredentials();
 
@@ -188,6 +287,396 @@ const generateReceiptPDF = (payment, student) => {
       doc.moveDown(2);
       doc.fontSize(10).text('Thank you for your payment!', { align: 'center' });
       doc.text('TIPS GALWAR Institute', { align: 'center' });
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const buildOfficialReceiptPDF = (payment, student) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 40,
+        info: {
+          Title: `Payment Receipt ${payment.receipt || payment._id}`,
+          Author: 'TIPS GALWAR',
+          Subject: 'Official payment receipt'
+        }
+      });
+      const buffers = [];
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const left = doc.page.margins.left;
+      const top = doc.page.margins.top;
+      const right = pageWidth - doc.page.margins.right;
+      const contentWidth = pageWidth - doc.page.margins.left - doc.page.margins.right;
+      const footerY = pageHeight - doc.page.margins.bottom - 34;
+      const primaryColor = '#1D4ED8';
+      const primarySoft = '#EAF2FF';
+      const borderColor = '#D7E3F4';
+      const inkColor = '#0F172A';
+      const mutedColor = '#64748B';
+      const statusColor = payment?.is_paid ? '#15803D' : '#B45309';
+      const netAmount = Math.max((Number(payment.amount) || 0) - (Number(payment.emi_discount) || 0), 0);
+      const paidOn = formatReceiptDate(payment.payment_date || payment.created_at);
+      const generatedOn = formatReceiptDate(new Date(), true);
+      const studentName = student?.name || 'N/A';
+      const receiptNumber = payment.receipt || payment._id?.toString() || 'N/A';
+      const transactionId = payment.txn_id || payment.razorpay_payment_id || 'N/A';
+      const sectionGap = 18;
+      const rowGap = 10;
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+      const ensureSpace = (heightNeeded) => {
+        if (doc.y + heightNeeded <= footerY - 20) {
+          return;
+        }
+
+        doc.addPage();
+      };
+
+      const drawInfoCard = (x, y, width, title, rows) => {
+        const padding = 16;
+        const labelWidth = 86;
+        const valueWidth = width - padding * 2 - labelWidth;
+        const bodyStartY = y + 40;
+        let currentY = bodyStartY;
+
+        rows.forEach(([label, value]) => {
+          const valueText = String(value || 'N/A');
+          const labelHeight = doc.heightOfString(label, { width: labelWidth, lineGap: 1 });
+          const valueHeight = doc.heightOfString(valueText, { width: valueWidth, lineGap: 1 });
+          currentY += Math.max(labelHeight, valueHeight) + rowGap;
+        });
+
+        const height = currentY - y + padding;
+
+        doc
+          .roundedRect(x, y, width, height, 12)
+          .lineWidth(1)
+          .strokeColor(borderColor)
+          .fillAndStroke('#FFFFFF', borderColor);
+
+        doc
+          .fillColor(primaryColor)
+          .font('Helvetica-Bold')
+          .fontSize(11)
+          .text(title, x + padding, y + 16, { width: width - padding * 2 });
+
+        currentY = bodyStartY;
+        rows.forEach(([label, value]) => {
+          const valueText = String(value || 'N/A');
+          const labelHeight = doc.heightOfString(label, { width: labelWidth, lineGap: 1 });
+          const valueHeight = doc.heightOfString(valueText, { width: valueWidth, lineGap: 1 });
+          const rowHeight = Math.max(labelHeight, valueHeight);
+
+          doc
+            .fillColor(mutedColor)
+            .font('Helvetica-Bold')
+            .fontSize(9.5)
+            .text(label, x + padding, currentY, {
+              width: labelWidth,
+              lineGap: 1
+            });
+
+          doc
+            .fillColor(inkColor)
+            .font('Helvetica')
+            .fontSize(10)
+            .text(valueText, x + padding + labelWidth, currentY, {
+              width: valueWidth,
+              lineGap: 1
+            });
+
+          currentY += rowHeight + rowGap;
+        });
+
+        return height;
+      };
+
+      const drawTableSection = (title, rows) => {
+        const sectionTop = doc.y;
+        const sectionPadding = 16;
+        const labelWidth = 150;
+        const valueWidth = contentWidth - sectionPadding * 2 - labelWidth;
+        let totalHeight = 54;
+
+        rows.forEach(([label, value]) => {
+          const valueText = String(value || 'N/A');
+          const labelHeight = doc.heightOfString(label, { width: labelWidth - 16, lineGap: 1 });
+          const valueHeight = doc.heightOfString(valueText, { width: valueWidth - 12, lineGap: 1 });
+          totalHeight += Math.max(labelHeight, valueHeight) + 20;
+        });
+
+        ensureSpace(totalHeight + 24);
+
+        doc
+          .roundedRect(left, doc.y, contentWidth, totalHeight, 12)
+          .lineWidth(1)
+          .strokeColor(borderColor)
+          .fillAndStroke('#FFFFFF', borderColor);
+
+        doc
+          .fillColor(primaryColor)
+          .font('Helvetica-Bold')
+          .fontSize(12)
+          .text(title, left + sectionPadding, doc.y + 16, {
+            width: contentWidth - sectionPadding * 2
+          });
+
+        let currentY = doc.y + 44;
+        rows.forEach(([label, value], index) => {
+          const valueText = String(value || 'N/A');
+          const rowHeight = Math.max(
+            doc.heightOfString(label, { width: labelWidth - 16, lineGap: 1 }),
+            doc.heightOfString(valueText, { width: valueWidth - 12, lineGap: 1 })
+          ) + 14;
+
+          if (index % 2 === 0) {
+            doc
+              .rect(left + 8, currentY - 6, contentWidth - 16, rowHeight + 6)
+              .fill(primarySoft);
+          }
+
+          doc
+            .fillColor(mutedColor)
+            .font('Helvetica-Bold')
+            .fontSize(9.5)
+            .text(label, left + sectionPadding, currentY, {
+              width: labelWidth - 16,
+              lineGap: 1
+            });
+
+          doc
+            .fillColor(inkColor)
+            .font('Helvetica')
+            .fontSize(10)
+            .text(valueText, left + sectionPadding + labelWidth, currentY, {
+              width: valueWidth - 12,
+              lineGap: 1
+            });
+
+          currentY += rowHeight + 6;
+        });
+
+        doc.y = sectionTop + totalHeight + sectionGap;
+      };
+
+      doc.rect(0, 0, pageWidth, 128).fill(primaryColor);
+
+      doc
+        .fillColor('#FFFFFF')
+        .font('Helvetica-Bold')
+        .fontSize(24)
+        .text('TIPS GALWAR', left, top + 6);
+
+      doc
+        .font('Helvetica')
+        .fontSize(11)
+        .text('Institute of Technical & Professional Studies', left, top + 38);
+
+      doc
+        .fontSize(10)
+        .fillColor('#DBEAFE')
+        .text('Official Student Fee Receipt', left, top + 58);
+
+      doc
+        .fontSize(9)
+        .text('Generated by Accounts & Collections Desk', left, top + 76);
+
+      doc
+        .roundedRect(right - 192, top + 2, 192, 86, 14)
+        .fillAndStroke('#FFFFFF', '#FFFFFF');
+
+      doc
+        .fillColor(primaryColor)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text('OFFICIAL RECEIPT', right - 176, top + 16, {
+          width: 160,
+          align: 'center'
+        });
+
+      doc
+        .fillColor(mutedColor)
+        .font('Helvetica')
+        .fontSize(9)
+        .text(`Receipt No. ${receiptNumber}`, right - 176, top + 38, {
+          width: 160,
+          align: 'center'
+        });
+
+      doc
+        .text(`Issued on ${paidOn}`, right - 176, top + 54, {
+          width: 160,
+          align: 'center'
+        });
+
+      doc
+        .fillColor(statusColor)
+        .font('Helvetica-Bold')
+        .fontSize(11)
+        .text(getReceiptStatusLabel(payment), right - 176, top + 70, {
+          width: 160,
+          align: 'center'
+        });
+
+      doc.y = 146;
+
+      ensureSpace(96);
+      doc
+        .roundedRect(left, doc.y, contentWidth, 78, 14)
+        .lineWidth(1)
+        .strokeColor(borderColor)
+        .fillAndStroke('#FFFFFF', borderColor);
+
+      doc
+        .fillColor(mutedColor)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text('Received With Thanks From', left + 20, doc.y + 18);
+
+      doc
+        .fillColor(inkColor)
+        .font('Helvetica-Bold')
+        .fontSize(18)
+        .text(studentName, left + 20, doc.y + 34, {
+          width: contentWidth - 220
+        });
+
+      doc
+        .fillColor(primaryColor)
+        .font('Helvetica')
+        .fontSize(10)
+        .text('Net Amount Received', right - 150, doc.y + 18, {
+          width: 120,
+          align: 'right'
+        });
+
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(22)
+        .text(formatReceiptCurrency(netAmount), right - 160, doc.y + 36, {
+          width: 130,
+          align: 'right'
+        });
+
+      doc.y += 94;
+
+      const cardGap = 16;
+      const cardWidth = (contentWidth - cardGap) / 2;
+      const studentRows = [
+        ['Enrollment ID', student?.enrollment_Id || 'N/A'],
+        ['Course', getStudentCourseLabel(student)],
+        ['Batch', getStudentBatchLabel(student)],
+        ['Contact', student?.contact || 'N/A'],
+        ['Email', student?.email || 'N/A'],
+        ['Address', getStudentAddressLabel(student)]
+      ];
+      const paymentRows = [
+        ['Receipt No', receiptNumber],
+        ['Payment Date', paidOn],
+        ['Payment Plan', getReceiptPlanLabel(payment)],
+        ['Installment', payment?.is_full_payment ? 'Single payment' : `${payment.emi_number || 1} of ${payment.total_emis || 1}`],
+        ['Transaction ID', transactionId],
+        ['Status', getReceiptStatusLabel(payment)]
+      ];
+
+      ensureSpace(260);
+      const cardsStartY = doc.y;
+      const studentCardHeight = drawInfoCard(left, cardsStartY, cardWidth, 'Student Details', studentRows);
+      const paymentCardHeight = drawInfoCard(left + cardWidth + cardGap, cardsStartY, cardWidth, 'Receipt Details', paymentRows);
+      doc.y = cardsStartY + Math.max(studentCardHeight, paymentCardHeight) + sectionGap;
+
+      const amountRows = [
+        ['Gross Amount', formatReceiptCurrency(payment.amount)],
+        ['Discount Applied', formatReceiptCurrency(payment.emi_discount || 0)],
+        ['Net Amount Received', formatReceiptCurrency(netAmount)],
+        ['Recorded On', paidOn],
+        ['Generated On', generatedOn]
+      ];
+
+      if (!payment?.is_full_payment) {
+        amountRows.splice(3, 0, ['EMI Plan', `${getReceiptPlanLabel(payment)} (${payment.emi_number || 1}/${payment.total_emis || 1})`]);
+      }
+
+      drawTableSection('Amount Breakdown', amountRows);
+
+      if (!payment?.is_full_payment && payment?.emi_duedate) {
+        drawTableSection('Upcoming EMI Reminder', [
+          ['Next Due Date', formatReceiptDate(payment.emi_duedate)],
+          ['Next Installment', `${Math.min((payment.emi_number || 1) + 1, payment.total_emis || 1)} of ${payment.total_emis || 1}`],
+          ['Expected Amount', formatReceiptCurrency(payment.amount)]
+        ]);
+      }
+
+      ensureSpace(92);
+      doc
+        .roundedRect(left, doc.y, contentWidth, 78, 12)
+        .lineWidth(1)
+        .strokeColor(borderColor)
+        .fillAndStroke(primarySoft, borderColor);
+
+      doc
+        .fillColor(inkColor)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text('Notes', left + 16, doc.y + 14);
+
+      doc
+        .font('Helvetica')
+        .fontSize(9.5)
+        .fillColor(mutedColor)
+        .text(
+          'This is a computer-generated official receipt issued against the payment recorded in the system. Please keep it for future fee and audit reference.',
+          left + 16,
+          doc.y + 30,
+          {
+            width: contentWidth - 32,
+            lineGap: 2
+          }
+        );
+
+      doc
+        .moveTo(right - 160, doc.y + 58)
+        .lineTo(right - 20, doc.y + 58)
+        .lineWidth(1)
+        .strokeColor('#94A3B8')
+        .stroke();
+
+      doc
+        .fillColor(mutedColor)
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .text('Authorized Signatory', right - 150, doc.y + 62, {
+          width: 120,
+          align: 'center'
+        });
+
+      doc
+        .moveTo(left, footerY)
+        .lineTo(right, footerY)
+        .lineWidth(1)
+        .strokeColor(borderColor)
+        .stroke();
+
+      doc
+        .fillColor(mutedColor)
+        .font('Helvetica')
+        .fontSize(8.5)
+        .text('TIPS GALWAR | Accounts Department Copy', left, footerY + 10);
+
+      doc
+        .text(generatedOn, right - 120, footerY + 10, {
+          width: 120,
+          align: 'right'
+        });
 
       doc.end();
     } catch (error) {
@@ -496,7 +985,7 @@ exports.addPayment = async (req, res) => {
 exports.getPayments = async (req, res) => {
   try {
     const payments = await Payment.find()
-      .populate('student_id')
+      .populate(paymentPopulateOptions)
       .sort({ created_at: -1 });
 
     return res.status(200).json({
@@ -525,7 +1014,7 @@ exports.getPaymentById = async (req, res) => {
       return res.status(400).json({ message: 'Invalid payment id.' });
     }
 
-    const payment = await Payment.findById(id).populate('student_id');
+    const payment = await Payment.findById(id).populate(paymentPopulateOptions);
 
     if (!payment) {
       return res.status(404).json({ message: 'Payment not found.' });
@@ -577,7 +1066,7 @@ exports.updatePayment = async (req, res) => {
     const updated = await Payment.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
-    }).populate('student_id');
+    }).populate(paymentPopulateOptions);
 
     if (!updated) {
       return res.status(404).json({ message: 'Payment not found.' });
@@ -650,7 +1139,7 @@ exports.searchPayment = async (req, res) => {
     }
 
     const payments = await Payment.find({ $or: filters })
-      .populate('student_id')
+      .populate(paymentPopulateOptions)
       .sort({ created_at: -1 });
 
     return res.status(200).json({
@@ -679,7 +1168,7 @@ exports.generateReceipt = async (req, res) => {
       return res.status(400).json({ message: 'Invalid payment id.' });
     }
 
-    const payment = await Payment.findById(id).populate('student_id');
+    const payment = await Payment.findById(id).populate(paymentPopulateOptions);
 
     if (!payment) {
       return res.status(404).json({ message: 'Payment not found.' });
@@ -689,10 +1178,13 @@ exports.generateReceipt = async (req, res) => {
       return res.status(404).json({ message: 'Student details not found for this payment.' });
     }
 
-    const pdfBuffer = await generateReceiptPDF(payment, payment.student_id);
+    const pdfBuffer = await buildOfficialReceiptPDF(payment, payment.student_id);
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=receipt_${payment._id}.pdf`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${sanitizeReceipt(`receipt_${payment.receipt || payment.student_id?.enrollment_Id || payment._id}`)}.pdf`
+    );
 
     return res.send(pdfBuffer);
   } catch (error) {
