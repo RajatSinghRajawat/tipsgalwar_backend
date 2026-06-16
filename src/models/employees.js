@@ -96,7 +96,7 @@ const employee_Schema = new mongoose.Schema({
 );
 
 
-const Employees = mongoose.model("Employees", employee_Schema);
+const Employees = mongoose.models.Employees || mongoose.model("Employees", employee_Schema);
 
 
 module.exports = { Employees }

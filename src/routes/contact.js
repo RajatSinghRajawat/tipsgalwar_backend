@@ -1,4 +1,5 @@
 const express = require("express");
+<<<<<<< HEAD
 const { Contacts } = require("../modals/contact");
 
 const contact_Router = express.Router();
@@ -61,3 +62,20 @@ contact_Router.delete("/contact/:id", async (req, res) => {
 });
 
 module.exports = contact_Router;
+=======
+const router = express.Router();
+
+// IMPORT CONTROLLER
+const {
+    contact,
+    getAllContact,
+    deleteContact
+} = require("../controllers/contact");
+
+// ROUTES
+router.post("/contact", contact);
+router.get("/contact", getAllContact);
+router.delete("/contact/:id", deleteContact);
+
+module.exports = router;
+>>>>>>> ed5cec7855c9b1c81d00c64538139545fe8b44fd

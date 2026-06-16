@@ -1,17 +1,17 @@
-const { Courses } = require("../modals/course");
+const { Courses } = require("../models/Course");
 
 
 const add = async (req, res) => {
     try {
-        const { course_Name, type, duration, course_Price, discount_Price, status } = req.body;
+        const { course_Name, type, duration, course_Price, discount_Price, status, date, description } = req.body;
 
-        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status) {
+        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status || !date || !description) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
         const banner = req.files?.map(file => file.path) || (req.file ? [req.file.path] : []);
 
-        
+
         const existingCourse = await Courses.findOne({ course_Name });
         if (existingCourse) {
             return res.status(400).json({ message: "Course with this name already exists" });
@@ -24,6 +24,8 @@ const add = async (req, res) => {
             course_Price,
             discount_Price,
             status,
+            date,
+            description,
             banner: banner
         });
 
@@ -65,18 +67,18 @@ const getOne = async (req, res) => {
 const update = async (req, res) => {
     try {
         const id = req.params.id;
-        const { course_Name, type, duration, course_Price, discount_Price, status } = req.body;
+        const { course_Name, type, duration, course_Price, discount_Price, status, date, description } = req.body;
 
-        if (req.files.length > 0) {
+        if (req.files && req.files.length > 0) {
             var image = req.files.map((file) => file.filename);
         }
 
-        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status) {
+        if (!course_Name || !type || !duration || !course_Price || !discount_Price || !status || !date || !description) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        
-        const updated_Data = await Courses.findByIdAndUpdate(id, { course_Name, type, duration, course_Price, discount_Price, status, banner: image || undefined }, { new: true });
+
+        const updated_Data = await Courses.findByIdAndUpdate(id, { course_Name, type, duration, course_Price, discount_Price, status, date, description, banner: image || undefined }, { new: true });
 
         if (!updated_Data) {
             return res.status(404).json({ message: "Course not found" });

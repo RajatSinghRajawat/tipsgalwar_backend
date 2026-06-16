@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 node_modules/
 .env
 public/Uploads/*
 !public/Uploads/.gitkeep
 .DS_Store
 *.log
+=======
+node_modules
+.env
+public/Uploads/
+>>>>>>> ed5cec7855c9b1c81d00c64538139545fe8b44fd

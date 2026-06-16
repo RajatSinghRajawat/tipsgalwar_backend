@@ -36,7 +36,7 @@ const fields = new mongoose.Schema({
 })
 
 
-const Batches = mongoose.model("Batches", fields);
+const Batches = mongoose.models.Batches || mongoose.model("Batches", fields);
 
 
 module.exports = { Batches }

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const { Employees } = require("../modals/employees");
+const { Employees } = require("../models/employees");
 const XLSX = require("xlsx");
 
 
@@ -33,7 +33,7 @@ const add_Employees = async (req, res) => {
             return res.status(400).json({ message: "All fields are required." });
         }
 
-        const image = req.files?.map(file => file.path) || (req.file ? [req.file.path] : []);
+        const image = req.files?.map(file => file.filename) || (req.file ? [req.file.filename] : []);
 
 
         const Employee_exist = await Employees.findOne({ email });
@@ -119,12 +119,14 @@ const update_Employee = async (req, res) => {
             return res.status(400).json({ message: "Invalid Employee ID" });
         }
 
-        if (req.file) {
-            req.body.image = req.file?.filename;
+        if (req.files && req.files.length > 0) {
+            req.body.images = req.files.map(file => file.filename);
+        } else if (req.file) {
+            req.body.images = [req.file.filename];
         }
 
         const updated_Data = await Employees.findByIdAndUpdate(id, req.body,
-            // { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!updated_Data) {
@@ -156,14 +158,6 @@ const delete_Employee = async (req, res) => {
         return res.status(500).json({ message: error.message });
     }
 };
-
-
-
-
-
-
-
-
 
 
 
@@ -245,4 +239,4 @@ const uploadExcelEmployees = async (req, res) => {
 };
 
 
-module.exports = { add_Employees, getAll_Employees, getOne_Employee, update_Employee, delete_Employee ,uploadExcelEmployees };
+module.exports = { add_Employees, getAll_Employees, getOne_Employee, update_Employee, delete_Employee, uploadExcelEmployees };

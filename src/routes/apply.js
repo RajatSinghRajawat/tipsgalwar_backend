@@ -1,4 +1,5 @@
 const express = require("express");
+<<<<<<< HEAD
 const { ApplieStudents } = require("../modals/apply");
 
 const apply_Router = express.Router();
@@ -134,3 +135,22 @@ apply_Router.delete("/apply/:id", async (req, res) => {
 });
 
 module.exports = apply_Router;
+=======
+const router = express.Router();
+
+const {
+    createApply,
+    getAllApply,
+    getApplyById,
+    updateApply,
+    deleteApply
+} = require("../controllers/apply");
+
+router.post("/apply", createApply);
+router.get("/apply", getAllApply);
+router.get("/apply/:id", getApplyById);
+router.put("/apply/:id", updateApply);
+router.delete("/apply/:id", deleteApply);
+
+module.exports = router;
+>>>>>>> ed5cec7855c9b1c81d00c64538139545fe8b44fd

@@ -34,11 +34,20 @@ const fields = new mongoose.Schema({
         required: true,
         default: []
     },
+    description: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    date: {
+        type: String,
+        required: true
+    }
 }, { timestamps: true }
 );
 
 
-const Courses = mongoose.model("Courses", fields);
+const Courses = mongoose.models.Courses || mongoose.model("Courses", fields);
 
 
 module.exports = { Courses };

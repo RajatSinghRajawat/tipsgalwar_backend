@@ -1,4 +1,4 @@
-const { Batches } = require("../modals/batch");
+const { Batches } = require("../models/batch");
 
 
 const add = async (req, res) => {
