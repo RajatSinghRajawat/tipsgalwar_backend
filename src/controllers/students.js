@@ -19,6 +19,10 @@ const add_Student = async (req, res) => {
 
         const image = req.file?.filename;
 
+        if (password.length > 72) {
+            return res.status(400).json({ message: "Password exceeds the maximum length of 72 characters." });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const data = await Students.create({
             course_Id,
@@ -113,10 +117,15 @@ const delete_Student = async (req, res) => {
 
 const search_Student = async (req, res) => {
     try {
-        const search_Value = await req.query.name;
+        let search_Value = req.query.name;
+        if (typeof search_Value !== 'string') {
+            search_Value = '';
+        }
+        // Escape regex special characters to prevent ReDoS and NoSQL Injection
+        const escaped_Search_Value = search_Value.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 
         const data = await Students.find({
-            name: { $regex: search_Value, $options: 'i' }
+            name: { $regex: escaped_Search_Value, $options: 'i' }
         })
 
         return res.status(200).json({ message: "Student found Successfully.", data })
@@ -146,8 +155,14 @@ const uploadExcelStudents = async (req, res) => {
                     continue;
                 }
 
+                // Validate password exists and is not too long to prevent LPDoS
+                if (!item.password || String(item.password).length > 72) {
+                    skippedData.push({ email: item.email, reason: "Invalid or too long password (max 72 characters)" });
+                    continue;
+                }
+
                 // password hash
-                const hashedPassword = await bcrypt.hash(item.password, 10);
+                const hashedPassword = await bcrypt.hash(String(item.password), 10);
 
                 const newStudent = {
                     course_Id: item.course_Id,

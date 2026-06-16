@@ -44,6 +44,10 @@ const add_Employees = async (req, res) => {
         }
 
 
+        if (password.length > 72) {
+            return res.status(400).json({ message: "Password exceeds the maximum length of 72 characters." });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const added_Data = await Employees.create({
@@ -187,8 +191,14 @@ const uploadExcelEmployees = async (req, res) => {
                     continue;
                 }
 
+                // Validate password exists and is not too long to prevent LPDoS
+                if (!item.password || String(item.password).length > 72) {
+                    skippedData.push({ email: item.email, reason: "Invalid or too long password (max 72 characters)" });
+                    continue;
+                }
+
                 // Hash password
-                const hashedPassword = await bcrypt.hash(item.password, 10);
+                const hashedPassword = await bcrypt.hash(String(item.password), 10);
 
                 const newEmployee = {
                     name: item.name,
